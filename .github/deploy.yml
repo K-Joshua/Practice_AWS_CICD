@@ -3,7 +3,7 @@ name: Deploy to AWS Lightsail
 on:
   push:
     branches:
-      - main
+      - feature/conditional_ui
 
 jobs:
   deploy:
