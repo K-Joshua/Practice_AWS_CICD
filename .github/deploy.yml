@@ -3,7 +3,7 @@ name: Deploy to AWS Lightsail
 on:
   push:
     branches:
-      - feature/conditional_ui
+      - feature/conditional-ui
 
 jobs:
   deploy:
@@ -34,4 +34,5 @@ jobs:
               flutter build web --release
               sudo rm -rf /var/www/html/*
               sudo cp -r build/web/* /var/www/html/
+              sudo nginx -t
               sudo systemctl reload nginx
