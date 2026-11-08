@@ -1,0 +1,36 @@
+name: Deploy to AWS Lightsail
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Execute Remote SSH Commands on Lightsail
+        uses: appleboy/ssh-action@v1.0.3
+
+        with:
+          host: ${{ secrets.LIGHTSAIL_HOST }}
+          username: ${{ secrets.LIGHTSAIL_USER }}
+          key: ${{ secrets.LIGHTSAIL_SSH_KEY }}
+          port: ${{ secrets.LIGHTSAIL_PORT }}
+          script_stop: true
+
+          script: |
+              set -euo pipefail
+              cd /home/prac/Practice_AWS_CICD
+              git fetch origin main
+              git reset --hard origin/main
+              cd my_first_flutter_app
+              flutter pub get
+              flutter build web --release
+              sudo rm -rf /var/www/html/*
+              sudo cp -r build/web/* /var/www/html/
+              sudo systemctl reload nginx
