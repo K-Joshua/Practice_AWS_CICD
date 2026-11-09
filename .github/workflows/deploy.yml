@@ -1,4 +1,5 @@
-name: Deploy to AWS Lightsail
+
+name: Deploy Flutter Web to AWS Lightsail
 
 on:
   push:
@@ -13,25 +14,50 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Execute Remote SSH Commands on Lightsail
-        uses: appleboy/ssh-action@v1.0.3
+      - name: Install Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
 
+      - name: Build Flutter Web
+        working-directory: my_first_flutter_app
+        run: |
+          flutter pub get
+          flutter build web --release
+
+      - name: Prepare AWS folder
+        uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.LIGHTSAIL_HOST }}
           username: ${{ secrets.LIGHTSAIL_USER }}
           key: ${{ secrets.LIGHTSAIL_SSH_KEY }}
           port: ${{ secrets.LIGHTSAIL_PORT }}
-          script_stop: true
-
           script: |
-              set -euo pipefail
-              cd /home/prac/Practice_AWS_CICD
-              git fetch origin main
-              git reset --hard origin/main
-              cd my_first_flutter_app
-              flutter pub get
-              flutter build web --release
-              sudo rm -rf /var/www/html/*
-              sudo cp -r build/web/* /var/www/html/
-              sudo nginx -t
-              sudo systemctl reload nginx
+            mkdir -p ~/flutter-web
+            rm -rf ~/flutter-web/*
+
+      - name: Upload Flutter Web files
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.LIGHTSAIL_HOST }}
+          username: ${{ secrets.LIGHTSAIL_USER }}
+          key: ${{ secrets.LIGHTSAIL_SSH_KEY }}
+          port: ${{ secrets.LIGHTSAIL_PORT }}
+          source: "my_first_flutter_app/build/web/*"
+          target: "~/flutter-web/"
+          strip_components: 3
+
+      - name: Deploy to Nginx
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.LIGHTSAIL_HOST }}
+          username: ${{ secrets.LIGHTSAIL_USER }}
+          key: ${{ secrets.LIGHTSAIL_SSH_KEY }}
+          port: ${{ secrets.LIGHTSAIL_PORT }}
+          script: |
+            set -e
+            sudo rm -rf /var/www/html/*
+            sudo cp -a ~/flutter-web/. /var/www/html/
+            sudo chown -R www-data:www-data /var/www/html
+            sudo nginx -t
+            sudo systemctl reload nginx
